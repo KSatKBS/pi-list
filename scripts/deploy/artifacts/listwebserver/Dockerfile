@@ -1,6 +1,8 @@
 # This is the LIST server's runtime Dockerfile
 
-FROM ubuntu:25.10
+# Debian 11 (gcc:11), as in the LIST images up to May 2026. Later upstream images moved
+# to Ubuntu 25.10, whose ffmpeg 7 broke audio rendering among other differences.
+FROM gcc:11
 
 ENV DEBIAN_FRONTEND=noninteractive
 
