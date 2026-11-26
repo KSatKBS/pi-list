@@ -30,7 +30,7 @@ function AncillaryDashboardRtpInfo({ currentStream }: { currentStream: SDK.types
     const debouncedMouseEnterOrLeave = debounce(handleOnMouseEnterOrLeave, 300);
 
     const PacketsPerFrameDisplay = () => {
-        const packetsPerFrameMeasurementData = propAsMinMaxAvg(pktsPerFrame?.details.range, 1);
+        const packetsPerFrameMeasurementData = propAsMinMaxAvg(pktsPerFrame?.details?.range, 1);
         const packetsPerFrameData: IMeasurementData = {
             title: translate('media_information.video.packets_per_frame'),
             data: [
@@ -45,16 +45,16 @@ function AncillaryDashboardRtpInfo({ currentStream }: { currentStream: SDK.types
                     attention: pktsPerFrame?.result !== 'compliant',
                 },
             ],
-            unit: pktsPerFrame?.details.unit,
+            unit: pktsPerFrame?.details?.unit,
         };
 
         const extraPanelData = {
             title: 'Range',
-            units: pktsPerFrame?.details.unit,
+            units: pktsPerFrame?.details?.unit,
             content: [
                 {
                     label: 'Min',
-                    value: pktsPerFrame?.details.limit.min,
+                    value: pktsPerFrame?.details?.limit?.min ?? '---',
                 },
                 {
                     label: 'Max',
@@ -75,8 +75,8 @@ function AncillaryDashboardRtpInfo({ currentStream }: { currentStream: SDK.types
     };
 
     const LatencyDisplay = () => {
-        const latencyMeasurementData = nsPropAsMinMaxAvgUs(deltaPktTsVsRtpTs?.details.range);
-        const latencyPassCriteriaData = nsPropAsMinMaxAvgUs(deltaPktTsVsRtpTs?.details.limit);
+        const latencyMeasurementData = nsPropAsMinMaxAvgUs(deltaPktTsVsRtpTs?.details?.range);
+        const latencyPassCriteriaData = nsPropAsMinMaxAvgUs(deltaPktTsVsRtpTs?.details?.limit);
         const latencyData: IMeasurementData = {
             title: translate('media_information.rtp.delta_first_packet_time_vs_rtp_time'),
             data: [
@@ -121,8 +121,8 @@ function AncillaryDashboardRtpInfo({ currentStream }: { currentStream: SDK.types
     };
 
     const InterFrameRtpTsDisplay = () => {
-        const interFrameRtpTsMeasurementData = propAsMinMaxAvg(interFrameRtpDelta?.details.range, 1);
-        const interFrameRtpTsPassCriteriaData = interFrameRtpDelta?.details.limit;
+        const interFrameRtpTsMeasurementData = propAsMinMaxAvg(interFrameRtpDelta?.details?.range, 1);
+        const interFrameRtpTsPassCriteriaData = interFrameRtpDelta?.details?.limit;
         const interFrameRtpTsData: IMeasurementData = {
             title: translate('media_information.rtp.inter_frame_rtp_ts_delta'),
             data: [
@@ -151,11 +151,11 @@ function AncillaryDashboardRtpInfo({ currentStream }: { currentStream: SDK.types
             content: [
                 {
                     label: 'Min',
-                    value: interFrameRtpTsPassCriteriaData.min,
+                    value: interFrameRtpTsPassCriteriaData?.min ?? '---',
                 },
                 {
                     label: 'Max',
-                    value: interFrameRtpTsPassCriteriaData.max,
+                    value: interFrameRtpTsPassCriteriaData?.max ?? '---',
                 },
             ],
         };
