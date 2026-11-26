@@ -1,17 +1,22 @@
+# EBU LIST with Korean CEA-708 captions.
+# platform: linux/amd64 lets it run on Apple Silicon Macs (emulated) as well.
 version: "3"
 services:
   influxdb:
     image: influxdb:1.4.2
+    platform: linux/amd64
     volumes:
       - influxdb:/var/lib/influxdb
 
   mongo:
     image: mongo:4.1.10
+    platform: linux/amd64
     volumes:
       - mongo:/data/db
 
   rabbitmq:
     image: pedroalvesferreira/rabbitmq-with-web-mqtt
+    platform: linux/amd64
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -19,6 +24,7 @@ services:
 
   listserver:
     image: ghcr.io/ksatkbs/pi-list:korean-captions # EBU LIST + Korean CEA-708 captions
+    platform: linux/amd64
     ports:
       - "80:80"
       - "443:443"
