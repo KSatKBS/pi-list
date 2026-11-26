@@ -18,3 +18,4 @@ package-lock.json
 *.log
 apps/listwebserver/version.yml
 .user
+/build-tests

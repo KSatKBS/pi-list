@@ -56,6 +56,19 @@ jobs:
             list-builder ./scripts/deploy/deploy.sh
           sudo chown -R "$(id -u):$(id -g)" release build ~/.conan
 
+      - name: Ancillary / Korean caption tests
+        run: |
+          docker run --rm \
+            -v "$PWD:/src" -v "$HOME/.conan:/root/.conan" -w /src \
+            list-builder bash -c '
+              set -e
+              mkdir -p build-tests && cd build-tests
+              cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_PCH=OFF -DBUILD_TESTS=ON
+              ninja ebu_list_analysis_unit_tests
+              ./bin/ebu_list_analysis_unit_tests --use-colour no \
+                "Scenario: Ancillary stream analysis,Scenario: CEA-708*,Scenario: KS X 1001*"'
+          sudo chown -R "$(id -u):$(id -g)" build-tests ~/.conan
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
