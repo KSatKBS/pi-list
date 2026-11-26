@@ -88,3 +88,6 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=EBU LIST with Korean (KS X 1001) CEA-708 caption decoding
+
+      - name: Smoke test (compose up, register, login, upload, read captions)
+        run: .github/scripts/smoke_test.sh "${{ steps.image.outputs.name }}:sha-${{ github.sha }}"
