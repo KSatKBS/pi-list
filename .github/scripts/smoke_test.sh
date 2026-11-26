@@ -67,5 +67,23 @@ TEXT=$(curl -sf "$BASE/api/pcap/$PCAP_ID/stream/$STREAM_ID/ancillary/$FILE" -H "
 printf '%s\n' "$TEXT"
 [ "$TEXT" = "$EXPECTED" ] || fail "unexpected caption text" # $(...) drops trailing newlines on both sides
 
+echo "== restart the server container: the site and login must come back"
+docker compose restart listserver
+code=000
+for _ in $(seq 1 36); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/" || true)
+    [ "$code" = 200 ] && break
+    sleep 5
+done
+[ "$code" = 200 ] || fail "site not reachable after restart (HTTP $code)"
+code=000
+for _ in $(seq 1 36); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/login" -H 'Content-Type: application/json' \
+        -d '{"username":"smoke","password":"smoke-test"}' || true)
+    [ "$code" = 200 ] && break
+    sleep 5
+done
+[ "$code" = 200 ] || fail "login failed after restart (HTTP $code)"
+
 echo "== OK: Korean captions decoded through the published image"
 docker compose down -v

@@ -1,7 +1,10 @@
 #!/bin/bash
 
 bash /app/gen_static_config.sh &
-service nginx start &
+# A pid file left over from before a container restart makes "service nginx start"
+# believe nginx is already running, so it never starts and the site stays down.
+rm -f /var/run/nginx.pid /run/nginx.pid
+nginx
 node ./static_server.js /app/gui 8080 &
 # Relaunch the API server if it crashes (otherwise nginx answers 502 to every API call)
 (while true; do
