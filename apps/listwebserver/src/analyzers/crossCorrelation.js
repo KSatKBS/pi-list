@@ -16,9 +16,9 @@ const getAudioBuffer = async (folder, channel, media_specific) => {
     const sampling = parseInt(media_specific.sampling) / 1000;
     const channelNumber = media_specific.number_channels;
 
-    const ffmpegCommand = `ffmpeg -hide_banner -y -f s${encodingBits}be -ar ${sampling}k -ac ${channelNumber} -i "${inputFile}" -map_channel 0.0.${
+    const ffmpegCommand = `ffmpeg -hide_banner -y -f s${encodingBits}be -ar ${sampling}k -ac ${channelNumber} -i "${inputFile}" -af "pan=mono|c0=c${
         parseInt(channel) - 1
-    } -f ${outputFormat} -acodec pcm_${outputFormat} "${outputFile}"`;
+    }" -f ${outputFormat} -acodec pcm_${outputFormat} "${outputFile}"`;
 
     try {
         const output = await exec(ffmpegCommand);
