@@ -69,6 +69,17 @@ jobs:
                 "Scenario: Ancillary stream analysis,Scenario: CEA-708*,Scenario: KS X 1001*"'
           sudo chown -R "$(id -u):$(id -g)" build-tests ~/.conan
 
+      - name: Build image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: release/server
+          file: release/server/Dockerfile
+          load: true
+          tags: list-under-test:latest
+
+      - name: Smoke test (compose up, register, login, upload, captions, audio, GUI, restart)
+        run: .github/scripts/smoke_test.sh list-under-test:latest
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -76,7 +87,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Push image
         uses: docker/build-push-action@v6
         with:
           context: release/server
@@ -88,6 +99,3 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=EBU LIST with Korean (KS X 1001) CEA-708 caption decoding
-
-      - name: Smoke test (compose up, register, login, upload, read captions)
-        run: .github/scripts/smoke_test.sh "${{ steps.image.outputs.name }}:sha-${{ github.sha }}"
