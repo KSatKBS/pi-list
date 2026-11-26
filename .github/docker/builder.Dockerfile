@@ -25,8 +25,8 @@ ARG CMAKE_VERSION=3.19.8
 RUN wget -q -O /tmp/cmake.sh https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-x86_64.sh && \
     sh /tmp/cmake.sh --skip-license --prefix=/usr/local && rm -f /tmp/cmake.sh
 
-# Node.js 20 (official binary) + yarn (classic)
-ARG NODE_VERSION=20.18.1
+# Node.js 22 LTS (official binary) + yarn (classic)
+ARG NODE_VERSION=22.20.0
 RUN wget -q -O /tmp/node.tar.xz https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz && \
     tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && rm -f /tmp/node.tar.xz && \
     npm install -g yarn@1
