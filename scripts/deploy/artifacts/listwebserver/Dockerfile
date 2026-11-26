@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install --no-install-recommends -yq  \
 RUN update-ca-certificates
 
 # Install node
-RUN curl -sL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh && \
+RUN curl -sL https://deb.nodesource.com/setup_22.x -o nodesource_setup.sh && \
         bash nodesource_setup.sh && \
         apt-get install -y --no-install-recommends \
         ffmpeg \

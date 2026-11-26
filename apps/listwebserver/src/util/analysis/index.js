@@ -370,15 +370,23 @@ function insertInDatabase(req, res, next) {
 }
 
 const postProcessSdpFiles = async (pcapId, folder) => {
-    Pcap.findOne({
+    try {
+        const data = await Pcap.findOne({
             id: pcapId
-        })
-        .exec()
-        .then(async (data) => {
-            const filename = data.file_name.replace(/\.[^\.]*$/, '-sdp.zip').replace(RegExp('/', 'g'), '-');
-            const files = await glob(`${folder}/**/*.sdp`);
-            await zipFilesExt(files, `${folder}/${filename}`, 'sdp');
-        });
+        }).exec();
+
+        // The pcap may have been deleted while it was being analysed
+        if (!data) {
+            logger('sdp-post-process').warn(`pcap ${pcapId} no longer exists, skipping SDP bundle`);
+            return;
+        }
+
+        const filename = data.file_name.replace(/\.[^\.]*$/, '-sdp.zip').replace(RegExp('/', 'g'), '-');
+        const files = await glob(`${folder}/**/*.sdp`);
+        await zipFilesExt(files, `${folder}/${filename}`, 'sdp');
+    } catch (err) {
+        logger('sdp-post-process').error(`exception: ${err}`);
+    }
 };
 
 export const runAnalysis = async (params) => {
@@ -413,7 +421,7 @@ export const runAnalysis = async (params) => {
                 })
                 .exec()
                 .then((pcap) => {
-                    if (pcap.error) {
+                    if (pcap && pcap.error) {
                         Pcap.findOneAndUpdate({
                             id: pcapId
                         }, {

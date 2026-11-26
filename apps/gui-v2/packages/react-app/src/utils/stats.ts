@@ -14,8 +14,8 @@ export const getComplianceSummary = (v: any) => {
 };
 
 export const nsPropAsMinMaxAvgUs = (info: any) => {
-    if (info === null) return { min: '---', max: '---', avg: '---' };
-    const toUs = (v: any) => (v === null ? '---' : (v / 1000).toFixed(0));
+    if (info === null || info === undefined) return { min: '---', max: '---', avg: '---' };
+    const toUs = (v: any) => (v === null || v === undefined ? '---' : (v / 1000).toFixed(0));
     return { min: toUs(info.min), max: toUs(info.max), avg: toUs(info.avg) };
 };
 

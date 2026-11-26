@@ -82,3 +82,13 @@ Pen attributes, colors, window positions and caption timing are not rendered.
 
 The KS X 1001 table (`cpp/libs/analysis/lib/src/ebu/list/analysis/handlers/cea708/ksx1001_table.cpp`)
 is generated with `scripts/generate_ksx1001_table.py`.
+
+A test capture with Korean captions, `sample_data/pcap/st2110/2110-40/anc_cea708_korean.pcap`,
+is generated from `anc_with_timecode+CC+AFD.pcap` by `scripts/make_korean_cc_test_pcap.py`.
+Uploaded to LIST, its CEA-708 sub-stream shows in `DTVCC Service 1`:
+
+```
+안녕하세요. 한글 자막 테스트입니다.
+ST 2110-40 CEA-708 디코더
+자막 방송 ♪
+```

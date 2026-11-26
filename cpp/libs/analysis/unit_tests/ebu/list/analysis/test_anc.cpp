@@ -1,8 +1,11 @@
 #include "catch2/catch.hpp"
 #include "ebu/list/analysis/full_analysis.h"
+#include "ebu/list/analysis/handlers/cea708/ksx1001.h"
 #include "ebu/list/test_lib/sample_files.h"
 #include "fs_handler_factory.h"
 #include <fstream>
+#include <iterator>
+#include <map>
 
 using namespace ebu_list;
 using namespace ebu_list::media;
@@ -39,6 +42,21 @@ namespace
     {
         const auto full_path = storage_folder / "stream.json";
         return load_json(full_path);
+    }
+
+    std::string read_text_file(const path& full_path)
+    {
+        std::ifstream ifs(full_path, std::ios::binary);
+        LIST_ENFORCE(ifs.is_open(), std::runtime_error, "{} not found", full_path.string());
+        return std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+    }
+
+    std::string utf8(const std::u32string& s)
+    {
+        std::string out;
+        for(const auto cp : s)
+            analysis::cea708::append_utf8(out, cp);
+        return out;
     }
 } // namespace
 //------------------------------------------------------------------------------
@@ -95,6 +113,53 @@ SCENARIO("Ancillary stream analysis")
             REQUIRE(stream["id"] == stream_ids[0]);
             REQUIRE(stream["state"] == to_string(stream_state::ANALYZED));
             REQUIRE(stream["statistics"]["payload_error_count"] == 3);
+        }
+    }
+    GIVEN("a pcap file with Korean (KS X 1001) CEA-708 captions")
+    {
+        // generated with scripts/make_korean_cc_test_pcap.py
+        const auto pcap_file      = test_lib::sample_file("pcap/st2110/2110-40/anc_cea708_korean.pcap");
+        const auto storage_folder = path("/tmp");
+        auto pcap                 = pcap_info{};
+
+        WHEN("the file is analysed")
+        {
+            run_analysis(pcap_file, pcap, storage_folder, get_stream_info);
+
+            REQUIRE(stream_ids.size() == 1);
+            const auto stream = load_stream_json(storage_folder / stream_ids[0]);
+            REQUIRE(stream["state"] == to_string(stream_state::ANALYZED));
+            REQUIRE(stream["statistics"]["payload_error_count"] == 0);
+
+            std::map<std::string, std::string> files; // sub-sub-stream type -> file name
+            for(const auto& sub_stream : stream["media_specific"]["sub_streams"])
+            {
+                if(sub_stream["did_sdid"] != 0x6101) continue;
+                for(const auto& ss : sub_stream["sub_sub_streams"])
+                    files[ss["type"].get<std::string>()] = ss["filename"].get<std::string>();
+            }
+
+            THEN("the caption text of service 1 is decoded as UTF-8")
+            {
+                REQUIRE(files.count("DTVCC Service 1") == 1);
+                const auto text = read_text_file(storage_folder / stream_ids[0] / files["DTVCC Service 1"]);
+
+                // Korean caption lines written by scripts/make_korean_cc_test_pcap.py (music note = G0 0x7F)
+                const auto expected = utf8(U"\uC548\uB155\uD558\uC138\uC694. \uD55C\uAE00 \uC790\uB9C9 "
+                                           U"\uD14C\uC2A4\uD2B8\uC785\uB2C8\uB2E4.\n"
+                                           U"ST 2110-40 CEA-708 \uB514\uCF54\uB354\n"
+                                           U"\uC790\uB9C9 \uBC29\uC1A1 \u266A\n");
+                REQUIRE(text == expected);
+            }
+
+            THEN("the decoding statistics are reported")
+            {
+                REQUIRE(files.count("DTVCC Statistics") == 1);
+                const auto stats = read_text_file(storage_folder / stream_ids[0] / files["DTVCC Statistics"]);
+                REQUIRE(stats.find("caption channel packets = 3\n") != std::string::npos);
+                REQUIRE(stats.find("sequence errors = 0\n") != std::string::npos);
+                REQUIRE(stats.find("korean (KS X 1001) characters = 22\n") != std::string::npos);
+            }
         }
     }
 }

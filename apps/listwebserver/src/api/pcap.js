@@ -864,14 +864,16 @@ function renderMp3(req, res) {
             const encodingBits = data.media_specific.encoding == 'L24' ? 24 : 16;
             const sampling = parseInt(data.media_specific.sampling) / 1000;
             const channelNumber = data.media_specific.number_channels;
-            // ffmpeg supports up to 16 input channels
-            const channelMapping = channels
+            // ffmpeg supports up to 16 input channels.
+            // -map_channel was removed in ffmpeg 7: select the channels with the pan filter instead.
+            const selectedChannels = channels
                 .split(',')
                 .slice(0, 16)
-                .map(function (i) {
-                    return '-map_channel 0.0.' + i;
-                })
-                .join(' ');
+                .map((i) => parseInt(i, 10))
+                .filter((i) => Number.isInteger(i) && i >= 0);
+            const channelMapping = `-af "pan=${selectedChannels.length}c|${selectedChannels
+                .map((input, output) => `c${output}=c${input}`)
+                .join('|')}"`;
             const ffmpegCommand = `ffmpeg -hide_banner -y -f s${encodingBits}be -ar ${sampling}k -ac ${channelNumber} -i "${rawFilePath}" ${channelMapping} -codec:a libmp3lame -qscale:a 2 "${mp3FilePath}"`;
 
             logger('render-mp3').info(`Command: ${ffmpegCommand}`);
