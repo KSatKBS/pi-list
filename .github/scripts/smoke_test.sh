@@ -75,6 +75,14 @@ wait_analyzed() {
     fail "analysis of $1 did not finish"
 }
 
+echo "== wait until the analysis pipeline (RabbitMQ consumers) is up"
+for _ in $(seq 1 60); do
+    n=$(docker compose logs --no-color listserver 2>/dev/null | grep -c "Waiting for messages in" || true)
+    [ "$n" -ge 3 ] && break
+    sleep 5
+done
+sleep 15
+
 echo "== upload"
 KOREAN_ID=$(upload "$KOREAN_PCAP")
 wait_analyzed "$KOREAN_ID"
@@ -86,8 +94,16 @@ for id in "$KOREAN_ID" "$VIDEO_ID" "$AUDIO_ID"; do
     curl -sf "$BASE/api/pcap/$id/streams" -H "$AUTH" | jq -c '.[] | {media_type, state, full_media_type}'
 done
 
+# Upload the Korean capture once more, now that the system is warm, to tell
+# start-up timing issues apart from decoding problems.
+KOREAN_ID2=$(upload "$KOREAN_PCAP")
+wait_analyzed "$KOREAN_ID2"
+sleep 5
+echo "first Korean upload: $(curl -sf "$BASE/api/pcap/$KOREAN_ID/streams" -H "$AUTH" | jq -r '[.[].state] | join(",")')"
+echo "second Korean upload: $(curl -sf "$BASE/api/pcap/$KOREAN_ID2/streams" -H "$AUTH" | jq -r '[.[].state] | join(",")')"
+
 echo "== Korean captions"
-curl -sf "$BASE/api/pcap/$KOREAN_ID/streams" -H "$AUTH" > /tmp/streams.json
+curl -sf "$BASE/api/pcap/$KOREAN_ID2/streams" -H "$AUTH" > /tmp/streams.json
 read -r STREAM_ID FILE < <(jq -r '
     .[] | . as $s | (.media_specific.sub_streams // [])[]
     | select(.did_sdid == 24833) | (.sub_sub_streams // [])[]
@@ -96,7 +112,7 @@ if [ -z "${FILE:-}" ]; then
     jq . /tmp/streams.json
     soft_fail "no 'DTVCC Service 1' payload"
 else
-    TEXT=$(curl -sf "$BASE/api/pcap/$KOREAN_ID/stream/$STREAM_ID/ancillary/$FILE" -H "$AUTH")
+    TEXT=$(curl -sf "$BASE/api/pcap/$KOREAN_ID2/stream/$STREAM_ID/ancillary/$FILE" -H "$AUTH")
     printf '%s\n' "$TEXT"
     # $(...) drops trailing newlines on both sides
     [ "$TEXT" = "$EXPECTED" ] && echo "captions OK" || soft_fail "unexpected caption text"
@@ -125,7 +141,7 @@ echo "== GUI (Chrome)"
 GUI_DIR=$(mktemp -d)
 cp .github/scripts/gui_check.js "$GUI_DIR/"
 (cd "$GUI_DIR" && npm install --silent --no-audit --no-fund playwright-core@1.49.1 >/dev/null)
-node "$GUI_DIR/gui_check.js" "$BASE" smoke smoke-test "$KOREAN_ID" "$VIDEO_ID" "$AUDIO_ID" || soft_fail "GUI check failed"
+node "$GUI_DIR/gui_check.js" "$BASE" smoke smoke-test "$KOREAN_ID2" "$VIDEO_ID" "$AUDIO_ID" || soft_fail "GUI check failed"
 
 echo "== restart the server container: the site and login must come back"
 docker compose restart listserver
