@@ -138,8 +138,34 @@ mac_address_analyzer::mac_addresses_info anc_stream_handler::get_mac_adresses_an
     return mac_analyzer_.get_mac_addresses_analysis();
 }
 
+void anc_stream_handler::finish_dtvcc_decoding()
+{
+    for(auto& [index, decoder] : dtvcc_decoders_)
+    {
+        auto& sub_stream = anc_description_.anc.sub_streams.at(index);
+        decoder.flush();
+        store_dtvcc_text(sub_stream, decoder);
+
+        const auto& stats = decoder.stats();
+        if(stats.packets == 0) continue;
+
+        auto ss = anc_sub_sub_stream("DTVCC Statistics");
+        ss.decoded_data =
+            fmt::format("caption channel packets = {}\n"
+                        "sequence errors = {}\n"
+                        "size errors = {}\n"
+                        "ignored cc entries (no packet start) = {}\n"
+                        "korean (KS X 1001) characters = {}\n",
+                        stats.packets, stats.sequence_errors, stats.size_errors, stats.ignored_cc_entries,
+                        stats.korean_characters);
+        sub_stream.anc_sub_sub_streams.push_back(ss);
+    }
+}
+
 void anc_stream_handler::on_complete()
 {
+    finish_dtvcc_decoding();
+
     auto anc_sub_streams = anc_description_.anc.sub_streams;
     for(auto it = anc_sub_streams.begin(); it != anc_sub_streams.end(); it++)
     {
@@ -285,7 +311,9 @@ void anc_stream_handler::parse_packet(const rtp::packet& packet)
         }
         it->errors(errors);
 
-        klvanc_ctx->callback_context = &(*it);
+        const auto sub_stream_index = static_cast<std::size_t>(it - anc_description_.anc.sub_streams.begin());
+        anc_decoding_context decoding_context{&(*it), &dtvcc_decoders_[sub_stream_index]};
+        klvanc_ctx->callback_context = &decoding_context;
         if(klvanc_packet_parse(klvanc_ctx, anc_packet.line_num(), static_cast<uint16_t*>(udw_buf.data()),
                                udw_buf.size()) < 0)
         {

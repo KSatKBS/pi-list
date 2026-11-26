@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ebu/list/analysis/handlers/cea708/dtvcc_decoder.h"
 #include "ebu/list/analysis/handlers/dscp_analyzer.h"
 #include "ebu/list/analysis/serialization/anc_serialization.h"
 #include "ebu/list/analysis/serialization/serializable_stream_info.h"
@@ -67,6 +68,7 @@ namespace ebu_list::analysis
 #pragma endregion event handlers
 
         void parse_packet(const rtp::packet& packet);
+        void finish_dtvcc_decoding();
 
         serializable_stream_info info_;
         anc_stream_details anc_description_;
@@ -75,6 +77,8 @@ namespace ebu_list::analysis
         mac_address_analyzer mac_analyzer_;
 
         struct klvanc_context_s* klvanc_ctx = nullptr;
+        // one CEA-708 decoder per ancillary sub-stream (key: index in anc_description_.anc.sub_streams)
+        std::map<std::size_t, cea708::dtvcc_decoder> dtvcc_decoders_;
         bool last_frame_was_marked_         = false;
         uint8_t field_                      = static_cast<uint8_t>(ebu_list::st2110::d40::field_kind::undefined);
         uint8_t last_field_                 = static_cast<uint8_t>(ebu_list::st2110::d40::field_kind::undefined);

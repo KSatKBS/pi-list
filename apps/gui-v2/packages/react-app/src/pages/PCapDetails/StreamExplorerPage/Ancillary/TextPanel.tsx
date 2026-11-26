@@ -13,9 +13,15 @@ function TextPanel({
     path: string;
 }) {
     const [text, setText] = React.useState();
-    list.stream.downloadText(path).then(result => {
-        setText(result);
-    });
+    React.useEffect(() => {
+        let active = true;
+        list.stream.downloadText(path).then(result => {
+            if (active) setText(result);
+        });
+        return () => {
+            active = false;
+        };
+    }, [path]);
     return (
         <div className="text-area">
             <label>{subSubStream.type}:</label>

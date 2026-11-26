@@ -7,7 +7,36 @@
 #include "ebu/list/st2110/d40/anc_description.h"
 
 using namespace ebu_list;
+using namespace ebu_list::analysis;
 using namespace ebu_list::st2110::d40;
+
+namespace
+{
+    anc_sub_sub_stream& find_or_add_sub_sub_stream(anc_sub_stream& s, const std::string& type)
+    {
+        auto ss = anc_sub_sub_stream(type);
+        auto it = std::find(s.anc_sub_sub_streams.begin(), s.anc_sub_sub_streams.end(), ss);
+        if(it != s.anc_sub_sub_streams.end()) return *it;
+
+        logger()->info("Ancillary: new sub-sub-stream: {}", type);
+        s.anc_sub_sub_streams.push_back(ss);
+        return s.anc_sub_sub_streams.back();
+    }
+
+    anc_sub_stream* sub_stream_of(void* callback_context)
+    {
+        return static_cast<anc_decoding_context*>(callback_context)->sub_stream;
+    }
+} // namespace
+
+void ebu_list::analysis::store_dtvcc_text(anc_sub_stream& sub_stream, cea708::dtvcc_decoder& decoder)
+{
+    for(auto& service : decoder.drain())
+    {
+        auto& ss = find_or_add_sub_sub_stream(sub_stream, fmt::format("DTVCC Service {}", service.service_number));
+        ss.decoded_data += service.text;
+    }
+}
 
 // #define LIBVANC_DEBUG
 
@@ -28,7 +57,7 @@ int cb_smpte_12_2(void* callback_context, [[maybe_unused]] struct klvanc_context
         return -1;
     }
 
-    auto s                   = static_cast<anc_sub_stream*>(callback_context);
+    auto s                   = sub_stream_of(callback_context);
     const std::string DBB1[] = {"ATC LTC", "ATC VITC1", "ATC VITC2"};
     std::string timecode =
         fmt::format("{:02d}:{:02d}:{:02d}:{:02d}\n", pkt->hours, pkt->minutes, pkt->seconds, pkt->frames);
@@ -97,7 +126,7 @@ std::string cc_608_decode(uint8_t* cc)
 int cb_eia_708(void* callback_context, [[maybe_unused]] struct klvanc_context_s* ctx,
                struct klvanc_packet_eia_708b_s* pkt)
 {
-    auto s  = static_cast<anc_sub_stream*>(callback_context);
+    auto s  = sub_stream_of(callback_context);
     auto ss = anc_sub_sub_stream("Details");
 
     auto it = std::find(s->anc_sub_sub_streams.begin(), s->anc_sub_sub_streams.end(), ss);
@@ -200,23 +229,28 @@ footer:\n\
                                         : "INVALID: does not match header",
                                     pkt->footer.packet_checksum, pkt->checksum_valid == 1 ? "VALID" : "INVALID");
 
-    /* Save individuals CC tracks */
+    /* Save individuals CC tracks:
+     * - cc_type 0/1: CEA-608 (line 21) byte pairs
+     * - cc_type 2/3: CEA-708 DTVCC, decoded per caption service (incl. Korean KS X 1001) */
     if(pkt->header.ccdata_present)
     {
+        auto dtvcc = static_cast<anc_decoding_context*>(callback_context)->dtvcc;
+
         for(int i = 0; i < pkt->ccdata.cc_count; i++)
         {
-            ss = anc_sub_sub_stream(cc_type_lookup(pkt->ccdata.cc[i].cc_type));
+            const auto& cc = pkt->ccdata.cc[i];
 
-            it = std::find(s->anc_sub_sub_streams.begin(), s->anc_sub_sub_streams.end(), ss);
-            if(it == s->anc_sub_sub_streams.end())
+            if(cc.cc_type >= 2)
             {
-                logger()->info("Ancillary: new sub-sub-stream: EIA 608 track ({})",
-                               cc_type_lookup(pkt->ccdata.cc[i].cc_type));
-                s->anc_sub_sub_streams.push_back(ss);
-                it = std::find(s->anc_sub_sub_streams.begin(), s->anc_sub_sub_streams.end(), ss);
+                if(dtvcc != nullptr) dtvcc->push(cc.cc_valid != 0, cc.cc_type, cc.cc_data[0], cc.cc_data[1]);
+                continue;
             }
-            it->decoded_data += cc_608_decode(pkt->ccdata.cc[i].cc_data);
+
+            auto& track = find_or_add_sub_sub_stream(*s, cc_type_lookup(cc.cc_type));
+            track.decoded_data += cc_608_decode(pkt->ccdata.cc[i].cc_data);
         }
+
+        if(dtvcc != nullptr) store_dtvcc_text(*s, *dtvcc);
     }
 
 #ifdef LIBVANC_DEBUG
@@ -240,7 +274,7 @@ int cb_afd(void* callback_context, [[maybe_unused]] struct klvanc_context_s* ctx
     }
 #endif
 
-    auto s  = static_cast<anc_sub_stream*>(callback_context);
+    auto s  = sub_stream_of(callback_context);
     auto ss = anc_sub_sub_stream("Details");
 
     auto it = std::find(s->anc_sub_sub_streams.begin(), s->anc_sub_sub_streams.end(), ss);
@@ -275,7 +309,7 @@ int cb_scte_104(void* callback_context, [[maybe_unused]] struct klvanc_context_s
     }
 #endif
 
-    auto s  = static_cast<anc_sub_stream*>(callback_context);
+    auto s  = sub_stream_of(callback_context);
     auto ss = anc_sub_sub_stream("Details");
 
     auto it = std::find(s->anc_sub_sub_streams.begin(), s->anc_sub_sub_streams.end(), ss);

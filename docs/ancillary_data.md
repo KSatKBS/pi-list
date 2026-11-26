@@ -56,3 +56,29 @@ Supported:
  * DTVCC Channel
  * AFD
  * SCTE 104 (only opID is decoded)
+
+### CEA-708 (DTVCC) caption text, including Korean
+
+The DTVCC entries (`cc_type` 2/3) of the CDP (DID 0x61 / SDID 0x01) are
+reassembled into caption channel packets and decoded per caption service.
+Each service gets a `DTVCC Service N` payload containing the caption text
+(UTF-8), with window boundaries and carriage returns rendered as line breaks.
+A `DTVCC Statistics` payload reports the number of packets, sequence number
+discontinuities, size errors and decoded Korean characters.
+
+Korean captions (TTA TTAK.KO-07.0093) are supported: Hangul and Hanja are
+transmitted as KS X 1001 (EUC-KR) two-byte codes in the G1 code space
+(both bytes in 0xA1..0xFE). The decoder:
+
+ * decodes a G1 byte pair as KS X 1001 when it is an assigned code,
+   otherwise as ISO 8859-1 (Latin-1), so that North American / European
+   captions keep working;
+ * reassembles a character split across two service blocks;
+ * also accepts 16-bit characters sent with the P16 command (`EXT1 0x18`),
+   either KS X 1001 or UCS-2;
+ * decodes G0 (ASCII, 0x7F = ♪), G2 and the G3 `[CC]` icon.
+
+Pen attributes, colors, window positions and caption timing are not rendered.
+
+The KS X 1001 table (`cpp/libs/analysis/lib/src/ebu/list/analysis/handlers/cea708/ksx1001_table.cpp`)
+is generated with `scripts/generate_ksx1001_table.py`.
