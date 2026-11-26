@@ -25,7 +25,10 @@ export COMPOSE_FILE="$COMPOSE" COMPOSE_PROJECT_NAME=smoke
 
 dump_logs() {
     docker compose ps || true
-    docker compose logs listserver --tail 300 || true
+    # analysis engine output (st2110_extractor / stream_pre_processor), then the end of the server log
+    docker compose logs --no-color listserver > /tmp/listserver.log 2>&1 || true
+    grep -n -A60 -E "st2110_extractor\] .*Command|Segmentation|Aborted|terminate called|core dumped|exception" /tmp/listserver.log | cut -c1-600 | head -1500 || true
+    tail -150 /tmp/listserver.log | cut -c1-600 || true
 }
 fail() {
     echo "::error::$*"
